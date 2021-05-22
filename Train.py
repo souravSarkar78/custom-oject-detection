@@ -2,6 +2,8 @@ import os
 import tensorflow as tf
 import time
 
+epoch = 4000
+batch_size = 6
 print(tf.__version__)
 
 def give_space(n=2):
@@ -47,23 +49,20 @@ for path in paths.values():
         os.mkdir(path)
 
 
+#Downloading Tensorflow Object-detection API
+
 clone_command = "git clone https://github.com/tensorflow/models "+paths['APIMODEL_PATH']
-
-
 if not os.path.exists(os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection')):
     print("Downloading Tensorfloe Object-detection-API")
     os.system(clone_command)
 else:
     print("Tensorflow Object Detection Model found at",paths['APIMODEL_PATH'])
-
 give_space()
 
+# Installing TF Object detection API
+print("Installing TF Object detection API ..... ") 
 protobuff_command = 'cd Tensorflow/models/research && protoc object_detection/protos/*.proto --python_out=. && cp object_detection/packages/tf2/setup.py . && python -m pip install .'
-
 os.system(protobuff_command)
-    
-print("Protobuff Copied !!!!!!!")
-
 give_space()
 
 
@@ -73,13 +72,11 @@ give_space(1)
 VERIFICATION_SCRIPT = "python3.7 " +os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'builders', 'model_builder_tf2_test.py')
 # Verify Installation
 os.system(VERIFICATION_SCRIPT)
-
 print("System Verified Succesfully....")
-
+give_space()
 
 import object_detection
 
-give_space()
 print("Downloading Pretrained Model....")
 url= ('wget '+PRETRAINED_MODEL_URL)
 os.system(url)
@@ -101,7 +98,7 @@ with open(files['LABELMAP'], 'w') as f:
         f.write('\tname:\'{}\'\n'.format(label['name']))
         f.write('\tid:{}\n'.format(label['id']))
         f.write('}\n')
-    print('Labelmap Created done')
+    print('Labelmap Created.....')
 
 give_space()
 
@@ -110,9 +107,9 @@ if not os.path.exists(files['TF_RECORD_SCRIPT']):
     git_link_command = 'git clone https://github.com/nicknochnack/GenerateTFRecord '+paths['SCRIPTS_PATH']
     os.system(git_link_command)
 
-    print("TF_Record Script Downloaded.................................")
+    print("TF_Record Script Downloaded..!!")
 
-give_space()
+give_space(1)
 print("Generating TF_Record...........")
 tf_record_train = 'python '+files['TF_RECORD_SCRIPT']+' -x '+paths['TRAIN_IMAGE_PATH']+' -l '+files['LABELMAP']+' -o '+os.path.join(paths['ANNOTATION_PATH'], 'train.record') 
 tf_record_test = 'python '+files['TF_RECORD_SCRIPT']+' -x '+paths['TEST_IMAGE_PATH']+' -l '+files['LABELMAP']+' -o '+os.path.join(paths['ANNOTATION_PATH'], 'test.record') 
@@ -127,7 +124,7 @@ if os.name =='posix':
     cp_command = 'cp '+os.path.join(paths['PRETRAINED_MODEL_PATH'], PRETRAINED_MODEL_NAME, 'pipeline.config')+' '+os.path.join(paths['CHECKPOINT_PATH'])
     os.system(cp_command)
 
-print("Pipeline config Copied")
+print("Copied Pipeline config.")
 time.sleep(2)
 give_space()
 
@@ -145,7 +142,7 @@ with tf.io.gfile.GFile(files['PIPELINE_CONFIG'], "r") as f:
     text_format.Merge(proto_str, pipeline_config)  
 
 pipeline_config.model.ssd.num_classes = len(labels)
-pipeline_config.train_config.batch_size = 4
+pipeline_config.train_config.batch_size = batch_size
 pipeline_config.train_config.fine_tune_checkpoint = os.path.join(paths['PRETRAINED_MODEL_PATH'], PRETRAINED_MODEL_NAME, 'checkpoint', 'ckpt-0')
 pipeline_config.train_config.fine_tune_checkpoint_type = "detection"
 pipeline_config.train_input_reader.label_map_path= files['LABELMAP']
@@ -159,13 +156,24 @@ with tf.io.gfile.GFile(files['PIPELINE_CONFIG'], "wb") as f:
     f.write(config_text)  
 
 print("Config modified..")
-give_space()
+give_space(1)
 
 print("Hold on ... Training is Starting....")
-give_space()
+give_space(1)
 
 TRAINING_SCRIPT = os.path.join(paths['APIMODEL_PATH'], 'research', 'object_detection', 'model_main_tf2.py')
 
-command = "python {} --model_dir={} --pipeline_config_path={} --num_train_steps=2000".format(TRAINING_SCRIPT, paths['CHECKPOINT_PATH'],files['PIPELINE_CONFIG'])
+command = "python {} --model_dir={} --pipeline_config_path={} --num_train_steps={}".format(TRAINING_SCRIPT, paths['CHECKPOINT_PATH'],files['PIPELINE_CONFIG'], epoch)
 give_space()
+st = time.time()
 os.system(command)
+give_space(1)
+print("Training took: ", (time.time()-st)/60, " minutes")
+
+give_space(5)
+
+print("evaluating Model...")
+command = "python {} --model_dir={} --pipeline_config_path={} --checkpoint_dir={}".format(TRAINING_SCRIPT, paths['CHECKPOINT_PATH'],files['PIPELINE_CONFIG'], paths['CHECKPOINT_PATH'])
+give_space(1)
+os.system(command)
+
