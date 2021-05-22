@@ -70,4 +70,4 @@ with open(files['LABELMAP'], 'w') as f:
         f.write('\tname:\'{}\'\n'.format(label['name']))
         f.write('\tid:{}\n'.format(label['id']))
         f.write('}\n')
-    print('Labelmap Created')
+    print('Labelmap Created ')
